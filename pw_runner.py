@@ -4,8 +4,13 @@ from datetime import datetime
 import locale
 from s3_path import build_s3_key
 import boto3
+import os
+from dotenv import load_dotenv
 
 contador = 1
+
+load_dotenv()
+
 
 def takescreenshot(page, error=None,s3_save=False):
     global contador
@@ -72,9 +77,11 @@ def run_playwright() -> bool:
             page.set_default_timeout(30000)
             page.goto("https://login.helpseguros.cl/login")
             time.sleep(3)
-            page.get_by_label("RUT").fill("9.471.310-2")
+            rut = os.environ.get("RUT")
+            page.get_by_label("RUT").fill(rut)
             page.get_by_label("Contraseña").click()
-            page.get_by_label("Contraseña").fill("JfK6bKZaTy!J@wp")
+            password = os.environ.get("PASS")
+            page.get_by_label("Contraseña").fill(password)
             takescreenshot(page)
             page.get_by_role("button", name="INGRESAR").click()
             time.sleep(20)
