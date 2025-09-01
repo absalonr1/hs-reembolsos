@@ -6,3 +6,8 @@ pip install -r requirements.txt
 playwright install firefox
 uvicorn web-service:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+```
+export AWS_PROFILE=<aws account>_AdministratorAccess
+aws sts get-caller-identity
+```

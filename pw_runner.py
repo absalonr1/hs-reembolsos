@@ -2,45 +2,50 @@ import time
 from playwright.sync_api import sync_playwright
 from datetime import datetime
 import locale
-from s3_path import build_s3_key
+from s3_path import build_s3_base
 import boto3
 import os
 from dotenv import load_dotenv
-
-contador = 1
+import uuid
+import pytz
+from datetime import datetime,timezone
 
 load_dotenv()
 
+contador = 1
+bucket_name = os.environ.get("S3_BUCKET")
 
-def takescreenshot(page, error=None,s3_save=False):
+
+def takescreenshot(page, error=None,s3_save=False,basePath=None):
     global contador
     timestamp = datetime.now().strftime("%Y-%m-%d:%H:%M:%S")
+    fileName = ""
+    
     if error is None:
-        page.screenshot(path=f"paso_{contador}_{timestamp}.png")
+        fileName = f"paso_{contador}_{timestamp}.jpeg"        
     else:
-        page.screenshot(path=f"error_{contador}_{timestamp}_ERROR.png")
-    print(f"DEBUG: paso {contador}")
+        fileName = f"error_{contador}_{timestamp}_ERROR.jpeg"
+
+    page.screenshot(path=fileName, type="jpeg" ,quality=50, full_page=True)
+    
     contador += 1
     if s3_save:
-        # Guardar en S3
-        key = build_s3_key(
-            env="prod",
-            app="afiliados-help",
-            journey="reembolso",
-            region="us-east-1"
-        )
+        #  base = (
+        #     f"synthetic/"
+        #     f"env={env}/app={app}/journey={journey}/region={region}/"
+        #     f"year={year}/month={month}/day={day}/hour={hour}/minute={minute}/"
+        #     f"run_id={run_id}/"
+        # )
+        s3save(fileName, basePath + fileName)
 
-        s3save(error, timestamp, key)
-
-def s3save(error, timestamp, key):
+def s3save(fileName, key):
     s3 = boto3.client('s3')
-    filename = f"paso_{contador}_{timestamp}.png" if error is None else f"error_{contador}_{timestamp}_ERROR.png"
-    bucket_name = "your-bucket-name"  # Reemplaza con el nombre de tu bucket
+    
     try:
-        s3.upload_file(filename, bucket_name, key)
-        print(f"DEBUG: Archivo {filename} guardado en S3 en {key}")
+        s3.upload_file(fileName, bucket_name, key)
+        print(f"DEBUG: Archivo {fileName} guardado en S3 en {key}")
     except Exception as e:
-        print(f"ERROR: No se pudo guardar {filename} en S3. Detalle: {e}")
+        print(f"ERROR: No se pudo guardar {fileName} en S3. Detalle: {e}")
     finally:
         print("DEBUG: Finalizó intento de guardar archivo en S3.")
         
@@ -51,13 +56,21 @@ def run_playwright() -> bool:
     mes = datetime.now().strftime("%B")
     anio = datetime.now().year
 
-    base_path = build_s3_key(
-        env="prod",
-        app="afiliados-help",
-        journey="reembolso",
-        region="us-east-1"
-    )
+    # Identificador único de la ejecución
+    santiago = pytz.timezone('America/Santiago')
+    now = datetime.now(tz=santiago)#timezone.utc)  # UTC-4
+    run_id = f"{now.strftime('%Y-%m-%dT%H-%M-%SZ')}_{uuid.uuid4().hex[:8]}"
+    
 
+    basePath = build_s3_base(
+            env="prod",
+            app="afiliados-help",
+            journey="reembolso",
+            region="us-east-1",
+            now=now,
+            run_id=run_id
+        )
+    
     browser = None
     context = None
     try:
@@ -82,36 +95,36 @@ def run_playwright() -> bool:
             page.get_by_label("Contraseña").click()
             password = os.environ.get("PASS")
             page.get_by_label("Contraseña").fill(password)
-            takescreenshot(page)
+            takescreenshot(page, s3_save=True,basePath=basePath)
             page.get_by_role("button", name="INGRESAR").click()
             time.sleep(20)
-            takescreenshot(page)
+            takescreenshot(page, s3_save=True,basePath=basePath)
             page.get_by_role("link", name="Mis reembolsos").click()
             page.get_by_role("link", name="Solicitar reembolso").click()
             page.locator("#pandoraBox").content_frame.get_by_label("Open calendar").click()
             page.locator("#pandoraBox").content_frame.get_by_label(f"1 de {mes} de {anio}", exact=True).click()
             page.locator("#pandoraBox").content_frame.get_by_text("arrow_drop_down").click()
             page.locator("#pandoraBox").content_frame.get_by_text("Absalon Luis Opazo Garcia").click()
-            takescreenshot(page)
+            takescreenshot(page, s3_save=True,basePath=basePath)
             page.locator("#pandoraBox").content_frame.get_by_role("button", name="Iniciar chevron_right").click()
             page.locator("#pandoraBox").content_frame.get_by_text("Consulta Médica").click()
             frame = page.frame_locator("#pandoraBox")
             upload = frame.locator("app-upload-file", has_text="cloud_upload Liquidación o")
             upload.locator('input[type="file"]').set_input_files("MONITOREO-GERENCIA-SISTEMAS.pdf")
             time.sleep(3)
-            takescreenshot(page)
+            takescreenshot(page, s3_save=True,basePath=basePath)
             upload = frame.locator("app-upload-file", has_text="cloud_upload Boleta - Voucher")
             upload.locator('input[type="file"]').set_input_files("MONITOREO-GERENCIA-SISTEMAS.png")
             time.sleep(3)
-            takescreenshot(page)
+            takescreenshot(page, s3_save=True,basePath=basePath)
             page.locator("#pandoraBox").content_frame.get_by_role("button", name="Continuar chevron_right").click()
             page.locator("#pandoraBox").content_frame.get_by_text("ABSALON LUIS OPAZO GARCIA", exact=True).click()
-            takescreenshot(page)
+            takescreenshot(page, s3_save=True,basePath=basePath)
             page.locator("#pandoraBox").content_frame.get_by_role("button", name="Continuar chevron_right").click()
             page.locator("#pandoraBox").content_frame.get_by_text("Acepto los Términos y").click()
             page.locator("#pandoraBox").content_frame.get_by_label("Close").click()
             time.sleep(3)
-            takescreenshot(page)
+            takescreenshot(page, s3_save=True,basePath=basePath)
             context.close()
             browser.close()
             print("Navegador cerrado.")
@@ -121,7 +134,7 @@ def run_playwright() -> bool:
     except Exception as e:
         print(f"Error: {e}")
         if 'page' in locals():
-            takescreenshot(page, error=True)
+            takescreenshot(page,error=True, s3_save=True,basePath=basePath)
         return False
     #finally:
         #if context:
