@@ -12,6 +12,14 @@ export AWS_PROFILE=<aws account>_AdministratorAccess
 aws sts get-caller-identity
 ```
 
+
+```
+brew install sops
+brew install age
+brew install yq
+```
+
+
 ```
 yq -r '.stringData | to_entries | .[] | "\(.key)=\(.value)"' secrets.yaml > .env
 ```
