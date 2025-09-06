@@ -17,6 +17,13 @@ aws sts get-caller-identity
 brew install sops
 brew install age
 brew install yq
+
+age-keygen -o ~/.config/age/key.txt
+export SOPS_AGE_KEY_FILE=~/.config/age/key.txt
+
+#crear en la raiz  archivo llamado .sops.yaml con la public key:
+#creation_rules:
+#  - age: "age1x5w2lq0w2r9..."   #  public key de age
 ```
 
 
