@@ -128,6 +128,7 @@ def run_playwright() -> bool:
             context.close()
             browser.close()
             print("Navegador cerrado.")
+            s3save("trafico-firefox.har", basePath + "trafico-firefox.har")
             # Fin tracing de playwright
             #context.tracing.stop(path="trace.zip")
         return True
