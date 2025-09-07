@@ -32,4 +32,6 @@ sops --encrypt secrets.yaml > secrets.enc.yaml
 sops --decrypt secrets.enc.yaml > secrets.yaml
 
 yq -r '.stringData | to_entries | .[] | "\(.key)=\(.value)"' secrets.yaml > .env
+
+sops --decrypt secrets.enc.yaml > secrets.yaml && yq -r '.stringData | to_entries | .[] | "\(.key)=\(.value)"' secrets.yaml > .env
 ```
