@@ -76,12 +76,20 @@ def run_playwright() -> bool:
     try:
         with sync_playwright() as playwright:
             print("Iniciando navegador...")
-            browser = playwright.firefox.launch(headless=False)
+            browser = playwright.firefox.launch(headless=True)
             print("Navegador iniciado.")
+
+            """
+                "omit" : no guarda cuerpos de respuesta, solo las cabeceras y la traza de requests (HAR liviano).
+                "attach" : adjunta los cuerpos pequeños directamente en el HAR.
+                "embed" : embebe los cuerpos directamente en el JSON del HAR (lo que lo infla bastante).
+            """
+            
             context = browser.new_context(
                 viewport={"width": 1920, "height": 1080},
                 record_har_path="trafico-firefox.har",
-                record_har_content="embed"
+                record_har_content="omit"
+                
             )
             # Tracing de playwright
             #context.tracing.start(screenshots=True, snapshots=True, sources=True)
@@ -89,7 +97,7 @@ def run_playwright() -> bool:
             page = context.new_page()
             page.set_default_timeout(30000)
             page.goto("https://login.helpseguros.cl/login")
-            time.sleep(3)
+            #time.sleep(3)
             rut = os.environ.get("RUT")
             page.get_by_label("RUT").fill(rut)
             page.get_by_label("Contraseña").click()
@@ -97,7 +105,15 @@ def run_playwright() -> bool:
             page.get_by_label("Contraseña").fill(password)
             takescreenshot(page, s3_save=True,basePath=basePath)
             page.get_by_role("button", name="INGRESAR").click()
-            time.sleep(20)
+            #time.sleep(20)
+            
+            iframe_locator = page.frame_locator("iframe#pandoraBox")
+            # Esperar hasta que el elemento <strong> esté disponible            
+            xpath = f"//html/body/app-root/div/app-home/div/div[1]/div[1]/div/div/div[1]/div/h2/span[1]/strong[contains(text(), 'Absalon')]"
+            
+            # Esperar hasta que el elemento esté visible
+            iframe_locator.locator(f"xpath={xpath}").wait_for(state="visible", timeout=30000)
+            time.sleep(2)
             takescreenshot(page, s3_save=True,basePath=basePath)
             page.get_by_role("link", name="Mis reembolsos").click()
             page.get_by_role("link", name="Solicitar reembolso").click()
@@ -111,11 +127,11 @@ def run_playwright() -> bool:
             frame = page.frame_locator("#pandoraBox")
             upload = frame.locator("app-upload-file", has_text="cloud_upload Liquidación o")
             upload.locator('input[type="file"]').set_input_files("MONITOREO-GERENCIA-SISTEMAS.pdf")
-            time.sleep(3)
+            time.sleep(2)
             takescreenshot(page, s3_save=True,basePath=basePath)
             upload = frame.locator("app-upload-file", has_text="cloud_upload Boleta - Voucher")
             upload.locator('input[type="file"]').set_input_files("MONITOREO-GERENCIA-SISTEMAS.png")
-            time.sleep(3)
+            time.sleep(2)
             takescreenshot(page, s3_save=True,basePath=basePath)
             page.locator("#pandoraBox").content_frame.get_by_role("button", name="Continuar chevron_right").click()
             page.locator("#pandoraBox").content_frame.get_by_text("ABSALON LUIS OPAZO GARCIA", exact=True).click()
@@ -123,7 +139,7 @@ def run_playwright() -> bool:
             page.locator("#pandoraBox").content_frame.get_by_role("button", name="Continuar chevron_right").click()
             page.locator("#pandoraBox").content_frame.get_by_text("Acepto los Términos y").click()
             page.locator("#pandoraBox").content_frame.get_by_label("Close").click()
-            time.sleep(3)
+            time.sleep(2)            
             takescreenshot(page, s3_save=True,basePath=basePath)
             context.close()
             browser.close()
